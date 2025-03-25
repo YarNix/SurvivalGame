@@ -1,0 +1,6 @@
+import pygame as pg
+from typing import Protocol
+
+class AbstractScreen(Protocol):
+    def draw(self, surf: pg.Surface) -> list[pg.FRect | pg.Rect]: ...
+    def update(self, *args, **kwargs) -> None: ...

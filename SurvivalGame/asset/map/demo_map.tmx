@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="32" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="7">
+ <objectgroup id="2" name="Collision" class="Collision">
+  <object id="1" x="269.591" y="84.6374" width="95.661" height="127.263"/>
+  <object id="2" x="325.366" y="181.662" width="282.712" height="68.3293"/>
+  <object id="3" x="538.195" y="136.037" width="114.452" height="447.557"/>
+  <object id="4" x="494" y="39" width="198" height="117"/>
+  <object id="5" x="325" y="261" width="54" height="106"/>
+  <object id="6" x="55" y="474" width="379" height="67"/>
+ </objectgroup>
+</map>
