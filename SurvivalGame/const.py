@@ -23,12 +23,8 @@ SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
 X_SCREEN_CENTER = SCREEN_WIDTH // 2
 Y_SCREEN_CENTER = SCREEN_HEIGHT // 2
+CELL_SIZE = 50
 
 TICK_RATE = 60
 
 INF = float('inf')
-
-from pygame import SRCALPHA as ALPHA
-from pygame.surface import Surface as pgSurface
-MASK_BG = pgSurface((SCREEN_WIDTH, SCREEN_HEIGHT), ALPHA)
-MASK_BG.fill(CL_TRANS)

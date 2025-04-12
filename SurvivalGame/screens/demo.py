@@ -17,7 +17,7 @@ class Demo:
             if cl == 'Collision':
                 for obj in layer:
                     self.map_collisions.append(pg.rect.FRect(obj.x, obj.y, obj.width, obj.height))
-        self.path_find.create_map()
+        self.path_find.map()
         self.map = pg.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.surface_mock = pg.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.surface_mock.fill(CL_WHITE)
