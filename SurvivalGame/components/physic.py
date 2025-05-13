@@ -12,7 +12,9 @@ class NonRigidBoundingBox(PhysicComponent):
         self.bound = bound
         self.direction = pg.Vector2(direction)
         self.speed = speed
-    def update(self, entity: AbstractEntity, dt: float, *_, **kwargs):
+        self.collided_ents = []
+    def update(self, entity: AbstractEntity, dt: float, *_, **kwargs): 
+        self.collided_ents.clear()
         collide_grid = kwargs.get('collide_grid', None)
         sprite = entity.get_component(SpriteComponent, None)
         if sprite is None:
@@ -27,6 +29,8 @@ class NonRigidBoundingBox(PhysicComponent):
             new_box = box.move(offset)
             for other_box, owner in collide_grid.get_collidables(spr_pos):
                 if isinstance(owner, EntityBase):
+                    if new_box.colliderect(other_box):
+                        self.collided_ents.append(owner)
                     continue
                 if not new_box.colliderect(other_box):
                     continue

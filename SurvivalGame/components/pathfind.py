@@ -361,3 +361,7 @@ class QLearningPathFind:
         direction.update(ACTION_TO_DIRECTION.get(best_action, (0, 0)))
         if direction.xy != (0, 0):
             direction.normalize_ip()
+        else:
+            direction.update(pg.Vector2(current_destination) - current_position)
+            if direction:
+                direction.normalize_ip()

@@ -47,7 +47,7 @@ render = LayeredRender(2)
 for spr, layer in map.map_renders:
     render.add(spr, layer)
 ACTIONS = list(Action(value) for value in Action._value2member_map_)
-agent = Enemy((0, 0), "Enemy 0", speed=map.tilewidth)
+agent = Enemy(skin="Enemy 0", speed=map.tilewidth, spawn=(0, 0))
 agent.add_component(CameraComponent, render)
 render.add(agent.get_component(SpriteComponent), LayerId.OBJECT)
 agent_physic = agent.get_component(PhysicComponent)
@@ -62,17 +62,19 @@ def get_agent_pos():
     return agent.get_component(SpriteComponent).rect.center
 running = True
 def update_screen():
+    global running
     if len(pg.event.get(pg.QUIT)):
-        pg.quit()
         running = False
-    pg.event.get()
-    render.render(screen)
-    pg.display.update()
+        pg.quit()
+    else:
+        pg.event.get()
+        render.render(screen)
+        pg.display.update()
 # Q-learning parameters
 alpha = 0.1        # learning rate
 gamma = 0.9        # discount factor
 epsilon = 0.2      # exploration rate
-episodes = 1000
+episodes = 500
 
 # Initialize Q-table
 Q: dict[State, GTable] = {}  # Q[(state, goal)][action] = value
@@ -106,7 +108,7 @@ def choose_action(state: State):
     g_table = Q.get(state, {})
     return max(ACTIONS, key=lambda a: g_table.get(a, 0.0))
 
-def run_episode(state: State, reached_goal: Callable[[State], bool], scale = 10):
+def run_episode(state: State, reached_goal: Callable[[State], bool], scale: float):
     MAX_STEPS = int(map.mapwidth * map.mapheight * len(ACTIONS) * scale)
     for nstep in range(MAX_STEPS):
         # Table of rewards
@@ -121,7 +123,7 @@ def run_episode(state: State, reached_goal: Callable[[State], bool], scale = 10)
         state = next_state
         if reached_goal(state):
             return True
-        if nstep % 100000 == 0 and running:
+        if nstep == (MAX_STEPS / 2) and running:
             update_screen()
     return False
 
@@ -142,28 +144,44 @@ def load_progress() -> dict:
 session_data = load_progress()
 start_x = session_data.get("goal_x", 0)
 start_y = session_data.get("goal_y", 0)
-start_ep     = session_data.get("ep", 0)
+start_ep = session_data.get("ep", 0)
 Q.update(session_data.get("q_table", {}))
-episodes_scale = session_data.get('scales', {})
+def get_scale(tile):
+    pos = ((tile[0] + 0.5) * map.tilewidth, (tile[1] + 0.5) * map.tileheight)
+    if (agent.get_component(SpriteComponent).rect.move_to(center=pos).collidelist(map.collisions) >= 0):
+        return 1.0
+    else:
+        return 2.0
 # Training loop
-
+scale: float | None = session_data.get('scale', None)
 for goal_x in range(start_x, map.mapwidth):
     for goal_y in range(start_y, map.mapheight):
         goaltile = goal_x, goal_y
-        for ep in range(episodes):
-            spawn = random.choice(map.markers.get('Enemy', []))
-            spawntile = (spawn[0] // map.tilewidth, spawn[1] // map.tileheight)
-            if ep % 100 == 0:
-                print("Starting episode", ep, "of position", goaltile)
-            if not run_episode(State(spawntile, goaltile), lambda s: s.tile == goaltile, episodes_scale.get(goaltile, 5)):
-                print("The posisition", goaltile, "was unreachable. Futher episodes will be shorter.")
-                episodes_scale[goaltile] = episodes_scale.get(goaltile, 10) / 10
-                if episodes_scale[goaltile] < 1e-4:
-                    break
+        if scale is None:
+            scale = get_scale((goal_x, goal_y))
+        for ep in range(start_ep, episodes):
+            try:
+                spawn = random.choice(map.markers.get('Enemy', []))
+                spawntile = (spawn[0] // map.tilewidth, spawn[1] // map.tileheight)
+                if ep % 100 == 0:
+                    print("Starting episode", ep, "of position", goaltile)
+                if not run_episode(State(spawntile, goaltile), lambda s: s.tile == goaltile, scale):
+                    print("The posisition", goaltile, "was unreachable. Futher episodes will be shorter.")
+                    scale = scale / 10
+                    if scale < 1e-5:
+                        break
+                elif running:
+                    update_screen()
+            except Exception as ex:
+                ep = min(0, ep - 1)
+                print(ex)
+                running = False
             if not running:
-                save_progress(goal_x=goal_x, goal_y=goal_y, ep=ep, q_table=Q, scales=episodes_scale)
+                save_progress(goal_x=goal_x, goal_y=goal_y, ep=ep, q_table=Q, scale=scale)
                 print("Training paused. Progress saved.")
                 exit()
+        scale = None
+        start_ep = 0
         print("Finished running for", goaltile)
     start_y = 0
 

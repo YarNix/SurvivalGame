@@ -1,6 +1,7 @@
 from typing import Protocol
 from SurvivalGame.components.abstract import FrameAnimation, PhysicComponent, SpriteComponent, AbstractEntity
 from SurvivalGame.components.sprites import SpriteSheetImage
+from SurvivalGame.components.state import PlayerStateComponent
 from SurvivalGame.const import *
 from SurvivalGame.typing import *
 import pygame as pg
@@ -74,7 +75,7 @@ class BasicAnimator:
             print('Warning: Animator attached on a spriteless entity!')
             return
         sprite.image = self.sprites[self._animation.index]
-        sprite.rect = sprite.image.get_frect(center=sprite.rect.center)
+        sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
 
     def update(self, entity: AbstractEntity, dt, *_, **__):
         if self._animation.step(dt):
@@ -82,7 +83,7 @@ class BasicAnimator:
             if sprite is None:
                 return
             sprite.image = self.sprites[self._animation.index]
-            sprite.rect = sprite.image.get_frect(center=sprite.rect.center)
+            sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
 
     def change_state(self, new_state: str):
         self._animation = create_animation(self.states[new_state])
@@ -91,12 +92,13 @@ class PlayerAnimator:
     needs_update = True
     update_order = ORD_ANIMATE
     def __init__(self, player_sprite: SpriteSheetImage):
+        REQUIRE_STATES = ['Stand', 'Dead', 'Run']
         self.sprites = player_sprite.sprites
-        if 'Stand' not in player_sprite.states or not isinstance(player_sprite.states['Stand'], list):
+        if any(state for state in REQUIRE_STATES if state not in player_sprite.states):
             raise ValueError(f'Missing states for the {PlayerAnimator.__name__}')
         self.animations = {state: create_animation(data) for state, data in player_sprite.states.items()}
         self.current_state = 'Stand'
-        self.flipped = True
+        self.flipped = False
 
     def on_attach(self, entity: AbstractEntity):
         sprite = entity.get_component(SpriteComponent, None)
@@ -104,26 +106,32 @@ class PlayerAnimator:
             print('Warning: Animator attached on a spriteless entity!')
             return
         sprite.image = self.sprites[self.animations[self.current_state].index]
-        sprite.rect = sprite.image.get_frect(center=sprite.rect.center)
+        sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
 
     def update(self, entity: AbstractEntity, dt, *_, **__):
         sprite = entity.get_component(SpriteComponent, None)
         physic = entity.get_component(PhysicComponent, None)
-        if sprite is None or physic is None:
+        state = entity.get_component(PlayerStateComponent, None)
+        if sprite is None or physic is None or state is None:
             return
         
         redraw = False
-        dir_x, dir_y = physic.direction.xy
-        if (dir_x, dir_y) != (0, 0):
-            if self.current_state != 'Run':
-                self.current_state = 'Run'
+        if state.health <= 0:
+            if self.current_state != 'Dead':
+                self.current_state = 'Dead'
                 redraw = True
-            if dir_x != 0 and (physic.direction.x < 0) != self.flipped:
-                self.flipped = physic.direction.x < 0
+        else:
+            dir_x, dir_y = physic.direction.xy
+            if (dir_x, dir_y) != (0, 0):
+                if self.current_state != 'Run':
+                    self.current_state = 'Run'
+                    redraw = True
+                if dir_x != 0 and (physic.direction.x < 0) != self.flipped:
+                    self.flipped = physic.direction.x < 0
+                    redraw = True
+            elif self.current_state != 'Stand':
+                self.current_state = 'Stand'
                 redraw = True
-        elif self.current_state != 'Stand':
-            self.current_state = 'Stand'
-            redraw = True
         
         current_ani = self.animations[self.current_state]
         if redraw:
@@ -136,4 +144,48 @@ class PlayerAnimator:
             if self.flipped:
                 new_sprite = pg.transform.flip(new_sprite, True, False)
             sprite.image = new_sprite
-            sprite.rect = sprite.image.get_frect(center=sprite.rect.center)
+            sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
+
+class EnemyAnimator:
+    needs_update = True
+    update_order = ORD_ANIMATE
+    def __init__(self, enemy_sprite: SpriteSheetImage) -> None:
+        REQUIRE_STATES = ['Dead', 'Hit', 'Run']
+        self.sprites = enemy_sprite.sprites
+        if any(state for state in REQUIRE_STATES if state not in enemy_sprite.states):
+            raise ValueError(f'Missing states for the {type(self).__name__}')
+        self.animations = {state: create_animation(data) for state, data in enemy_sprite.states.items()}
+        self.current_state = 'Run'
+        self.flipped = True
+
+    def on_attach(self, entity: AbstractEntity):
+        sprite = entity.get_component(SpriteComponent, None)
+        if sprite is None:
+            print('Warning: Animator attached on a spriteless entity!')
+            return
+        sprite.image = self.sprites[self.animations[self.current_state].index]
+        sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
+
+    def update(self, entity: AbstractEntity, dt, *_, **__):
+        sprite = entity.get_component(SpriteComponent, None)
+        physic = entity.get_component(PhysicComponent, None)
+        if sprite is None or physic is None:
+            return
+        redraw = False
+        dir_x, dir_y = physic.direction.xy
+        if dir_x != 0 and (physic.direction.x < 0) != self.flipped:
+            self.flipped = physic.direction.x < 0
+            redraw = True
+
+        current_ani = self.animations[self.current_state]
+        if redraw:
+            current_ani.restart() 
+        else:
+            redraw = current_ani.step(dt)
+        
+        if redraw:
+            new_sprite = self.sprites[current_ani.index]
+            if self.flipped:
+                new_sprite = pg.transform.flip(new_sprite, True, False)
+            sprite.image = new_sprite
+            sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))

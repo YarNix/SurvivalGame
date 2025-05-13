@@ -23,6 +23,9 @@ class LayeredRender:
     def add(self, spr: SpriteComponent, layer: LayerId = LayerId.DEFAULT):
         self.sprites.setdefault(layer, []).append(spr)
     
+    def remove(self, spr: SpriteComponent, layer: LayerId = LayerId.DEFAULT):
+        self.sprites[layer].remove(spr)
+
     def render(self, surface: pg.Surface):
         self.sprites.get(LayerId.OBJECT, []).sort(key=lambda spr: spr.rect.centery)
 
