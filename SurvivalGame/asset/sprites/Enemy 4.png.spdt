@@ -1,0 +1,40 @@
+!SpriteSheet
+sprites:
+- !SpriteSlice
+  name: Run 0
+  rect:
+  - 0
+  - 19
+  - 18
+  - 18
+- !SpriteSlice
+  name: Run 1
+  rect:
+  - 19
+  - 19
+  - 18
+  - 18
+- !SpriteSlice
+  name: Hit
+  rect:
+  - 38
+  - 19
+  - 18
+  - 18
+- !SpriteSlice
+  name: Dead
+  rect:
+  - 0
+  - 0
+  - 18
+  - 18
+states:
+  Dead: Dead
+  Hit: Hit
+  Run:
+  - !!python/tuple
+    - Run 0
+    - 300.0
+  - !!python/tuple
+    - Run 1
+    - 300.0

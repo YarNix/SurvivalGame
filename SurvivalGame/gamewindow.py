@@ -18,8 +18,8 @@ class SurvivalGame:
 
         self.pause = False
 
-        self.statemgr = StateManager(self, game=GameScreen, menu=MenuScreen, demo=Demo)
-        self.statemgr.setactive("game")
+        self.statemgr = StateManager(self, game=GameScene, menu=MenuScene, demo=Demo)
+        self.statemgr.setactive("demo")
 
     def run(self):
         self.running = True
@@ -28,7 +28,7 @@ class SurvivalGame:
                 self.running = False
                 break
             events = pg.event.get()
-            dt = self.clock.tick(TICK_RATE) / 1000
+            dt = min(self.clock.tick(TICK_RATE) / 1000, 1.0)
             
             self.screen.fill(CL_BLACK)
             if self.statemgr.current:

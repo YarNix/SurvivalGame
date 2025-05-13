@@ -1,10 +1,82 @@
+import math
 import pygame as pg
+from SurvivalGame.components.abstract import SpriteComponent
 from SurvivalGame.const import *
 from pytmx.util_pygame import load_pygame
 from .camera import Camera
 from .pathfinder import PathFinder
 from .grid import SpatialHashGrid
 from typing import Callable
+from random import random
+from SurvivalGame.typing import *
+from pathlib import Path
+import yaml
+from pytmx.pytmx import AnimationFrame, TiledMap
+
+
+class SpriteSlice(yaml.YAMLObject):
+    yaml_tag = '!SpriteSlice'
+    def __init__(self, name: str, rect: BaseRect):
+        self.name = name
+        self.rect = rect
+
+class SpriteSheet(yaml.YAMLObject):
+    yaml_tag = '!SpriteSheet'
+    def __init__(self, sprites: list[SpriteSlice], states: dict[str, AnimationData]):
+        self.sprites = sprites
+        self.states = states
+
+def generate_missing_surface(size: tuple[int, int] = (16, 16)) -> pg.Surface:
+    surf = pg.Surface(size)
+    surf.fill(CL_BLACK)
+    _CELL_SIZE = 8
+    cols = math.ceil(size[0] / _CELL_SIZE)
+    rows = math.ceil(size[1] / _CELL_SIZE)
+    for row in range(rows):
+        for col in range(cols):
+            if (row + col) % 2:
+                x = col * _CELL_SIZE
+                y = row * _CELL_SIZE
+                w = min(_CELL_SIZE, size[0] - x)
+                h = min(_CELL_SIZE, size[1] - y)
+                pg.draw.rect(surf, (255, 0, 220), pg.Rect(x, y, w, h))
+    return surf
+
+class SpriteSheetImage:
+    LOADED: dict[str, 'SpriteSheetImage'] = {}
+    def __init__(self, sprites: dict[str, pg.Surface] = {}, states: dict[str, AnimationData] = {}):
+        self.sprites = sprites
+        self.states = states
+
+    @staticmethod
+    def from_yaml(source):
+        if source not in SpriteSheetImage.LOADED:
+            src_path = Path(source)
+            sheet: SpriteSheet = yaml.load(src_path.with_name(src_path.name + '.spdt').open(), yaml.Loader)
+            image = pg.image.load(src_path)
+            sprites = {
+                spr.name: image.subsurface(spr.rect[0], image.height - spr.rect[1] - spr.rect[3], spr.rect[2], spr.rect[3])
+                for spr in sheet.sprites
+            }
+            SpriteSheetImage.LOADED[source] = SpriteSheetImage(sprites, sheet.states)
+        return SpriteSheetImage.LOADED[source]
+    
+    @staticmethod
+    def from_tile_animation(animation: list[AnimationFrame], map: TiledMap):
+        sprites = {}
+        frames = []
+        for idx, frame in enumerate(animation):
+            surface: pg.Surface = map.get_tile_image_by_gid(frame.gid) or generate_missing_surface()
+            sprites[str(idx)] = surface
+            frames.append((str(idx), frame.duration))
+        return SpriteSheetImage(sprites, {'default': frames})
+
+class BasicSprite(SpriteComponent):
+    def __init__(self, image: pg.Surface = generate_missing_surface(), **kwargs):
+        super().__init__()
+        self.image = image
+        self.rect = self.image.get_frect(**kwargs)
+
 
 def dir_from_polar(len_angle: tuple[float, float]):
     angle = (len_angle[1] + 45)
@@ -88,13 +160,14 @@ class AbstractEntity:
     An abstract class that represent entities in a world
     The entity can move and collide with things in the world
     """
-    def __init__(self, width = 10, height = 10, x = 0, y = 0, speed = 200, collision_grid: SpatialHashGrid = None):
+    def __init__(self, width = 10, height = 10, x = 0, y = 0, speed = 200, collision_grid: SpatialHashGrid | None = None):
         self.state_rect = pg.FRect(0, 0, width, height)
         self.state_rect.center = (x, y)
         self.direction = pg.Vector2(0, 0)
         self.speed = speed
         self.collision_grid = collision_grid
-        collision_grid.add(self.state_rect)
+        if collision_grid:
+            collision_grid.add(self)
 
     def update_movement(self, dt: float) -> pg.Vector2:
         """
@@ -103,31 +176,47 @@ class AbstractEntity:
         returns the vector of displacement applied to the entity
         """
         # Checking for collision
-        k_x = 1
-        k_y = 1
-        offset = self.direction * self.speed * dt
-        new_rect = self.state_rect.copy()
-        new_rect.center += offset
-        DIST_TOL = 1e-4
-        for obj in self.collision_grid.get_neighbours(self.state_rect):
-            if not new_rect.colliderect(obj):
-                continue
-            if obj.colliderect(self.state_rect):
-                # Edge case where the player is already
-                # inside the collision rect for more than a tick
-                continue
-            if self.direction.x != 0:
-                dist = (obj.left - self.state_rect.right) if self.direction.x > 0 else (self.state_rect.left - obj.right)
-                if abs(dist) > DIST_TOL:
-                    k_x = min(k_x, abs(dist / offset.x))
-                else:
-                    k_x = 0
-            if self.direction.y != 0:
-                dist = (obj.top - self.state_rect.bottom) if self.direction.y > 0 else (self.state_rect.top - obj.bottom)
-                if abs(dist) > DIST_TOL:
-                    k_y = min(k_y, abs(dist / offset.y))
-                else:
-                    k_y = 0
+        if self.collision_grid:
+            k_x = 1
+            k_y = 1
+            offset = self.direction * self.speed * dt
+            new_rect = self.state_rect.copy()
+            new_rect.center += offset
+            DIST_TOL = 1e-4
+            for obj, owner in self.collision_grid.get_neighbours(self.state_rect):
+                if not new_rect.colliderect(obj):
+                    continue
+                if obj.colliderect(self.state_rect):
+                    if owner is None:
+                        # Edge case where the entity is already
+                        # inside the collision rect for more than a tick
+                        continue
+                    elif isinstance(owner, AbstractEntity):
+                        # Entity is inside another entity
+                        # apply a force to seperate them
+                        sep_dir = self.get_rect().center - pg.Vector2(owner.get_rect().center)
+                        SEP_FORCE = 5
+                        if sep_dir.xy == (0, 0):
+                            sep_dir.update(SEP_FORCE, 0)
+                            sep_dir.rotate_ip(random() * 360)
+                        else:
+                            sep_dir.scale_to_length(SEP_FORCE)
+                        print(f'Detected {obj} inside, applying {sep_dir}')
+                        self.direction += sep_dir
+                        offset = self.direction * self.speed * dt
+                        
+                if self.direction.x != 0:
+                    dist = (obj.left - self.state_rect.right) if self.direction.x > 0 else (self.state_rect.left - obj.right)
+                    if abs(dist) > DIST_TOL:
+                        k_x = min(k_x, abs(dist / offset.x))
+                    else:
+                        k_x = 0
+                if self.direction.y != 0:
+                    dist = (obj.top - self.state_rect.bottom) if self.direction.y > 0 else (self.state_rect.top - obj.bottom)
+                    if abs(dist) > DIST_TOL:
+                        k_y = min(k_y, abs(dist / offset.y))
+                    else:
+                        k_y = 0
 
         # Updating movement
         offset.x *= k_x
@@ -137,14 +226,14 @@ class AbstractEntity:
     
     def set_pos(self, x: float | int | tuple[float | int], y: float | int | None = None):
         # Updating postion
-        self.collision_grid.remove(self.state_rect)
+        self.collision_grid.remove(self)
         if isinstance(x, tuple):
             offset = pg.Vector2(x) - self.state_rect.center
             self.state_rect.center = x
         else:
             offset = pg.Vector2(x, y or 0) - self.state_rect.center
             self.state_rect.center = (x, y or 0)
-        self.collision_grid.add(self.state_rect)
+        self.collision_grid.add(self)
         # Updating other position attached properties
         if hasattr(self, 'camera') and self.camera is not None:
             self.camera.update(offset)
@@ -157,9 +246,9 @@ class AbstractEntity:
         else:
             offset = pg.Vector2(x, y or 0)
         # Updating postion
-        self.collision_grid.remove(self.state_rect)
+        self.collision_grid.remove(self)
         self.state_rect.center += offset
-        self.collision_grid.add(self.state_rect)
+        self.collision_grid.add(self)
         # Updating other position attached properties
         if hasattr(self, 'camera') and self.camera is not None:
             self.camera.update(offset)
@@ -168,6 +257,10 @@ class AbstractEntity:
 
     def get_pos(self) -> tuple[float | int, float | int]:
         return self.state_rect.center
+    
+    def get_rect(self) -> pg.FRect:
+        """Get the rect representing the entity"""
+        return self.state_rect
 
 
 class Player(pg.sprite.Sprite, _TmxSprite, AbstractEntity):
@@ -264,7 +357,7 @@ class Player(pg.sprite.Sprite, _TmxSprite, AbstractEntity):
             self.image_atlas.blit(spr.image, spr.rect)
         pg.transform.scale_by(self.image_atlas.subsurface(self.state_col * self.sub_width, self.state_row * self.sub_height, self.sub_width, self.sub_height), self.scaled, self.image)
         
-        if self.attacking and self.tile_states[self.col_states[self.state_col]][0].frame_index == 4:
+        if self.attacking and self.tile_states[self.col_states[self.state_col]][0].frame_index == 2:
             self.attack_mask = pg.mask.from_surface(self.image)
         else:
             self.attack_mask = None
@@ -300,6 +393,7 @@ class Enemy(pg.sprite.Sprite, _TmxSprite, AbstractEntity):
         self.onkill = onkill
         self.update_path = False
         self.cached_path = None
+        self.groups()
 
     def update(self, *, dt: float, global_var: dict, **kwargs):
         if global_var['draw_path']:
@@ -339,7 +433,6 @@ class Enemy(pg.sprite.Sprite, _TmxSprite, AbstractEntity):
             if next_target is not None:
                 to_target_vec = next_target - state_vec
                 to_target_len = to_target_vec.length()
-                self.direction.update(to_target_vec)
             elif self.player:
                 to_target_vec = self.player.get_pos() - state_vec
                 to_target_len = to_target_vec.length()
@@ -370,15 +463,18 @@ class Enemy(pg.sprite.Sprite, _TmxSprite, AbstractEntity):
             col = self.col_states.index(dir_from_polar(self.direction.as_polar()))
             row = self.row_states.index(self.WALK_STATE)
 
-        if self.health <= 0 and self.tile_states[self.DEAD_STATE][0].looped != 0:
-            if self.onkill:
+        if self.health <= 0:
+            if self.collision_grid:
+                self.collision_grid.remove(self)
+                self.collision_grid = None
+            if self.tile_states[self.DEAD_STATE][0].looped != 0 and self.onkill:
                 self.onkill(self)
-            return
+                return
 
         if self.damaged and self.tile_states[self.HURT_STATE][0].looped != 0:
             self.damaged = False
 
-        if False and self.player.attacking:
+        if self.player.attacking:
             if self.player.attack_mask is not None and not (self.missed or self.damaged):
                 hitbox = pg.Mask(self.state_rect.size, True)
                 offset = self.state_rect.center - (self.player.state_rect.center - pg.Vector2(self.player.rect.size) / 2)

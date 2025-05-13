@@ -1,0 +1,187 @@
+!SpriteSheet
+sprites:
+- !SpriteSlice
+  name: Select 0
+  rect:
+  - 0
+  - 103
+  - 18
+  - 18
+- !SpriteSlice
+  name: Select 1
+  rect:
+  - 19
+  - 103
+  - 18
+  - 18
+- !SpriteSlice
+  name: Select 2
+  rect:
+  - 38
+  - 103
+  - 18
+  - 18
+- !SpriteSlice
+  name: Title 0
+  rect:
+  - 57
+  - 100
+  - 63
+  - 21
+- !SpriteSlice
+  name: Select 3
+  rect:
+  - 0
+  - 84
+  - 18
+  - 18
+- !SpriteSlice
+  name: Select 4
+  rect:
+  - 19
+  - 84
+  - 18
+  - 18
+- !SpriteSlice
+  name: Select 5
+  rect:
+  - 38
+  - 84
+  - 18
+  - 18
+- !SpriteSlice
+  name: Title 1
+  rect:
+  - 57
+  - 88
+  - 67
+  - 11
+- !SpriteSlice
+  name: Select 6
+  rect:
+  - 0
+  - 65
+  - 18
+  - 18
+- !SpriteSlice
+  name: Select 7
+  rect:
+  - 19
+  - 65
+  - 18
+  - 18
+- !SpriteSlice
+  name: Select 8
+  rect:
+  - 38
+  - 65
+  - 18
+  - 18
+- !SpriteSlice
+  name: Title 2
+  rect:
+  - 57
+  - 76
+  - 42
+  - 11
+- !SpriteSlice
+  name: Select 9
+  rect:
+  - 0
+  - 46
+  - 18
+  - 18
+- !SpriteSlice
+  name: Panel
+  rect:
+  - 19
+  - 46
+  - 18
+  - 18
+- !SpriteSlice
+  name: Back 0
+  rect:
+  - 38
+  - 46
+  - 18
+  - 18
+- !SpriteSlice
+  name: Box 1
+  rect:
+  - 57
+  - 49
+  - 33
+  - 26
+- !SpriteSlice
+  name: Box 0
+  rect:
+  - 91
+  - 49
+  - 33
+  - 26
+- !SpriteSlice
+  name: Icon 0
+  rect:
+  - 0
+  - 37
+  - 8
+  - 8
+- !SpriteSlice
+  name: Back 1
+  rect:
+  - 9
+  - 37
+  - 8
+  - 8
+- !SpriteSlice
+  name: Front 1
+  rect:
+  - 19
+  - 37
+  - 8
+  - 8
+- !SpriteSlice
+  name: Front 0
+  rect:
+  - 38
+  - 27
+  - 18
+  - 18
+- !SpriteSlice
+  name: Joystick 0
+  rect:
+  - 57
+  - 0
+  - 48
+  - 48
+- !SpriteSlice
+  name: Joystick 1
+  rect:
+  - 106
+  - 0
+  - 48
+  - 48
+states:
+  Back 0: Back 0
+  Back 1: Back 1
+  Box 0: Box 0
+  Box 1: Box 1
+  Front 0: Front 0
+  Front 1: Front 1
+  Icon: Icon 0
+  Joystick 0: Joystick 0
+  Joystick 1: Joystick 1
+  Panel: Panel
+  Select 0: Select 0
+  Select 1: Select 1
+  Select 2: Select 2
+  Select 3: Select 3
+  Select 4: Select 4
+  Select 5: Select 5
+  Select 6: Select 6
+  Select 7: Select 7
+  Select 8: Select 8
+  Select 9: Select 9
+  Title 0: Title 0
+  Title 1: Title 1
+  Title 2: Title 2

@@ -1,0 +1,80 @@
+!SpriteSheet
+sprites:
+- !SpriteSlice
+  name: Run 0
+  rect:
+  - 0
+  - 38
+  - 18
+  - 18
+- !SpriteSlice
+  name: Run 1
+  rect:
+  - 19
+  - 38
+  - 18
+  - 18
+- !SpriteSlice
+  name: Run 2
+  rect:
+  - 38
+  - 38
+  - 18
+  - 18
+- !SpriteSlice
+  name: Run 3
+  rect:
+  - 0
+  - 19
+  - 18
+  - 18
+- !SpriteSlice
+  name: Run 4
+  rect:
+  - 19
+  - 19
+  - 18
+  - 18
+- !SpriteSlice
+  name: Run 5
+  rect:
+  - 38
+  - 19
+  - 18
+  - 18
+- !SpriteSlice
+  name: Hit
+  rect:
+  - 0
+  - 0
+  - 18
+  - 18
+- !SpriteSlice
+  name: Dead
+  rect:
+  - 19
+  - 0
+  - 18
+  - 18
+states:
+  Dead: Dead
+  Hit: Hit
+  Run:
+  - !!python/tuple
+    - Run 0
+    - 300.0
+  - !!python/tuple
+    - Run 1
+    - 300.0
+  - !!python/tuple
+    - Run 2
+    - 300.0
+  - !!python/tuple
+    - Run 3
+    - 300.0
+  - !!python/tuple
+    - Run 4
+    - 300.0
+  - !!python/tuple
+    - Run 5
+    - 300.0

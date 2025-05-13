@@ -3,6 +3,7 @@ from heapq import heappush, heappop
 import sys
 from typing import TypeVar, Generic, Generator, Literal, Iterable
 from itertools import combinations
+from SurvivalGame.const import *
 from SurvivalGame.typing import *
 import pygame as pg
 

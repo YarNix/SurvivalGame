@@ -10,7 +10,7 @@ import pygame as pg
 from pytmx.util_pygame import load_pygame
 from pytmx.pytmx import TiledTileLayer, TiledObjectGroup
 
-class GameScreen:
+class GameScene:
     TILED_LAYER = 0
     OBJECT_LAYER = 2
     OVERLAY_LAYER = 4
@@ -45,7 +45,7 @@ class GameScreen:
         pg.mouse.set_visible(False)
 
         self.enemy_spawn_event = pg.event.custom_type()
-        pg.time.set_timer(self.enemy_spawn_event, 1500)
+        #pg.time.set_timer(self.enemy_spawn_event, 1500)
         self.enemy_spawns: list[tuple[int, int] | tuple[float, float]] = []
 
         for layer in map.layers:
@@ -100,7 +100,7 @@ class GameScreen:
         map = self.player.camera.background.rect
         visible = pg.FRect(-map.left, -map.top, SCREEN_WIDTH, SCREEN_HEIGHT)
         spawns = [s for s in self.enemy_spawns if not visible.collidepoint(s)] or self.enemy_spawns
-        enemy.set_pos(random.choice(spawns))
+        enemy.set_pos((200, 300))
         self.player.camera.add(enemy)
         self.all_sprites[self.OBJECT_LAYER].append(enemy)
 
@@ -157,7 +157,7 @@ class GameScreen:
                 start = (xstart * CELL_SIZE, i * CELL_SIZE) + scr_offset
                 end = ((xstart + 3) * CELL_SIZE, i * CELL_SIZE) + scr_offset
                 pg.draw.line(surf, CL_WHITE, start, end)
-            for o in self.grid_collisions.get_neighbours(self.player.state_rect):
+            for o, _ in self.grid_collisions.get_neighbours(self.player.state_rect):
                 pg.draw.rect(surf, CL_LGRAY, o.move(scr_offset))
 
         for _, sprites in self.all_sprites.items():

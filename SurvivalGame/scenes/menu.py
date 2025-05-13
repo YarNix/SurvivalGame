@@ -2,7 +2,7 @@ import pygame as pg
 from SurvivalGame.const import *
 from SurvivalGame.components.ui import Button
 
-class MenuScreen(pg.sprite.Group):
+class MenuScene(pg.sprite.Group):
     def __init__(self, game):
         super().__init__()
         background = pg.sprite.Sprite(self)

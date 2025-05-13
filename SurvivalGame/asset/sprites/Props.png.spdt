@@ -1,0 +1,155 @@
+!SpriteSheet
+sprites:
+- !SpriteSlice
+  name: Weapon 0
+  rect:
+  - 0
+  - 42
+  - 18
+  - 9
+- !SpriteSlice
+  name: Weapon 1
+  rect:
+  - 19
+  - 42
+  - 18
+  - 9
+- !SpriteSlice
+  name: Weapon 2
+  rect:
+  - 38
+  - 42
+  - 18
+  - 9
+- !SpriteSlice
+  name: Weapon 3
+  rect:
+  - 0
+  - 32
+  - 18
+  - 9
+- !SpriteSlice
+  name: Weapon 4
+  rect:
+  - 19
+  - 32
+  - 18
+  - 9
+- !SpriteSlice
+  name: Weapon 5
+  rect:
+  - 38
+  - 32
+  - 18
+  - 9
+- !SpriteSlice
+  name: Bullet 0
+  rect:
+  - 0
+  - 13
+  - 7
+  - 18
+- !SpriteSlice
+  name: Bullet 1
+  rect:
+  - 8
+  - 13
+  - 7
+  - 18
+- !SpriteSlice
+  name: Bullet 2
+  rect:
+  - 16
+  - 18
+  - 9
+  - 13
+- !SpriteSlice
+  name: Bullet 3
+  rect:
+  - 26
+  - 23
+  - 4
+  - 8
+- !SpriteSlice
+  name: Bullet 4
+  rect:
+  - 31
+  - 22
+  - 5
+  - 9
+- !SpriteSlice
+  name: Shadow
+  rect:
+  - 37
+  - 25
+  - 10
+  - 6
+- !SpriteSlice
+  name: Bullet 5
+  rect:
+  - 26
+  - 15
+  - 6
+  - 6
+- !SpriteSlice
+  name: Box
+  rect:
+  - 37
+  - 12
+  - 15
+  - 12
+- !SpriteSlice
+  name: Exp 0
+  rect:
+  - 0
+  - 0
+  - 10
+  - 11
+- !SpriteSlice
+  name: Exp 1
+  rect:
+  - 11
+  - 0
+  - 10
+  - 11
+- !SpriteSlice
+  name: Exp 2
+  rect:
+  - 22
+  - 0
+  - 10
+  - 11
+- !SpriteSlice
+  name: Mag
+  rect:
+  - 33
+  - 0
+  - 12
+  - 11
+- !SpriteSlice
+  name: Health
+  rect:
+  - 46
+  - 0
+  - 10
+  - 11
+states:
+  Box: Box
+  Bullet 0: Bullet 0
+  Bullet 1: Bullet 1
+  Bullet 2: Bullet 2
+  Bullet 3: Bullet 3
+  Bullet 4: Bullet 4
+  Bullet 5: Bullet 5
+  Exp 0: Exp 0
+  Exp 1: Exp 1
+  Exp 2: Exp 2
+  Health: Health
+  Mag: Mag
+  Shadow: Shadow
+  Weapon 0: Weapon 0
+  Weapon 1: Weapon 1
+  Weapon 2: Weapon 2
+  Weapon 3: Weapon 3
+  Weapon 4: Weapon 4
+  Weapon 5: Weapon 5

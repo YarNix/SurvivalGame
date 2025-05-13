@@ -1,0 +1,126 @@
+!SpriteSheet
+sprites:
+- !SpriteSlice
+  name: Run 0
+  rect:
+  - 0
+  - 63
+  - 18
+  - 20
+- !SpriteSlice
+  name: Run 1
+  rect:
+  - 19
+  - 63
+  - 18
+  - 20
+- !SpriteSlice
+  name: Run 2
+  rect:
+  - 38
+  - 63
+  - 18
+  - 20
+- !SpriteSlice
+  name: Run 3
+  rect:
+  - 0
+  - 42
+  - 18
+  - 20
+- !SpriteSlice
+  name: Run 4
+  rect:
+  - 19
+  - 42
+  - 18
+  - 20
+- !SpriteSlice
+  name: Run 5
+  rect:
+  - 38
+  - 42
+  - 18
+  - 20
+- !SpriteSlice
+  name: Stand 0
+  rect:
+  - 0
+  - 21
+  - 18
+  - 20
+- !SpriteSlice
+  name: Stand 1
+  rect:
+  - 19
+  - 21
+  - 18
+  - 20
+- !SpriteSlice
+  name: Stand 2
+  rect:
+  - 38
+  - 21
+  - 18
+  - 20
+- !SpriteSlice
+  name: Stand 3
+  rect:
+  - 0
+  - 0
+  - 18
+  - 20
+- !SpriteSlice
+  name: Dead 0
+  rect:
+  - 19
+  - 0
+  - 18
+  - 20
+- !SpriteSlice
+  name: Dead 1
+  rect:
+  - 38
+  - 0
+  - 18
+  - 20
+states:
+  Dead:
+  - !!python/tuple
+    - Dead 0
+    - 300.0
+  - !!python/tuple
+    - Dead 1
+    - 300.0
+  Run:
+  - !!python/tuple
+    - Run 0
+    - 300.0
+  - !!python/tuple
+    - Run 1
+    - 300.0
+  - !!python/tuple
+    - Run 2
+    - 300.0
+  - !!python/tuple
+    - Run 3
+    - 300.0
+  - !!python/tuple
+    - Run 4
+    - 300.0
+  - !!python/tuple
+    - Run 5
+    - 300.0
+  Stand:
+  - !!python/tuple
+    - Stand 0
+    - 300.0
+  - !!python/tuple
+    - Stand 1
+    - 300.0
+  - !!python/tuple
+    - Stand 2
+    - 300.0
+  - !!python/tuple
+    - Stand 3
+    - 300.0
