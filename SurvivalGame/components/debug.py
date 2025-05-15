@@ -1,10 +1,13 @@
+from random import choice
+from typing import Any
 from SurvivalGame.components.abstract import EntityBase, PhysicComponent
 from SurvivalGame.components.camera import CameraComponent
 from SurvivalGame.components.map import SpatialGrid
-from SurvivalGame.components.pathfind import PathFindComponent, UninformedPathFind
+from SurvivalGame.components.pathfind import AOSearching, BackTrackCSP, InformedPathFind, LocalPathFind, PathFindComponent, QLearningPathFind, UninformedPathFind
 from SurvivalGame.components.render import LayerId, LayeredRender
 from SurvivalGame.components.sprites import BasicSprite
 from SurvivalGame.const import *
+from SurvivalGame.components.spawner import ENEMY_TYPE_TO_SKIN, EnemyType, ENEMY_TYPE_TO_PATHFIND
 import pygame as pg
 
 
@@ -35,6 +38,9 @@ class Debugger(EntityBase):
         if not self.switch.active:
             return
         super().update(*args, **kwargs)
+        scene: Any = kwargs.get('scene', None)
+        if scene is None:
+            return
         for event in kwargs.get('events', []):
             if event.type == pg.KEYDOWN and event.mod == pg.KMOD_RCTRL:
                 if event.key == pg.K_c:
@@ -42,13 +48,31 @@ class Debugger(EntityBase):
                 elif event.key == pg.K_e:
                     scene = kwargs.get('scene', None)
                     if scene is not None:
-                        enemy: EntityBase = scene.spawn_enemy()
-                        # player: EntityBase = scene.player
-                        # camera = player.get_component(CameraComponent)
-                        # camera.__dict__["needs_update"] = False
-                        # enemy.add_component(CameraComponent, self._render)
+                        enemy: EntityBase = scene.enemy_spawn.spawn(EnemyType.GHOUL)
                 elif event.key == pg.K_p:
                     self.switch.draw_pathfind = not self.switch.draw_pathfind
+                elif event.key == pg.K_q:
+                    scene.pause = not scene.pause
+                elif event.key == pg.K_0:
+                    scene.enemy_spawn.enable = False
+                elif event.key == pg.K_1 or event.key == pg.K_2 or event.key == pg.K_3 or event.key == pg.K_4 or event.key == pg.K_5 or event.key == pg.K_6:
+                    algo = {
+                        pg.K_1: UninformedPathFind,
+                        pg.K_2: InformedPathFind,
+                        pg.K_3: LocalPathFind,
+                        pg.K_4: AOSearching,
+                        pg.K_5: BackTrackCSP,
+                        pg.K_6: QLearningPathFind
+                    }
+                    print('Spawning', algo[event.key])
+                    ENEMY_TYPE_TO_SKIN[0] = ENEMY_TYPE_TO_SKIN[choice([EnemyType.WEAK_ZOMBIE, EnemyType.STRONG_ZOMBIE, EnemyType.WEAK_SKELETON, EnemyType.STRONG_SKELETON, EnemyType.GHOUL])]
+                    ENEMY_TYPE_TO_PATHFIND[0] = [algo[event.key]]
+                    scene.enemy_spawn.spawn(0)
+                elif event.key == pg.K_9:
+                    for enemy in scene.enemy_spawn.active.copy():
+                        scene.enemy_spawn.deactive_enemy(enemy)
+                elif event.key == pg.K_l:
+                    scene.enemy_spawn.enable = not scene.enemy_spawn.enable 
 
         surf = self.get_component(BasicSprite).image
         surf.fill(CL_TRANS)

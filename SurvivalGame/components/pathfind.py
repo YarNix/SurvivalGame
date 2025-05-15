@@ -55,6 +55,10 @@ class MinimalPathFindBase(PathFindComponent, ABC):
             should_update = angle > self.update_angle
         if should_update:
             self.path_find(current_position, current_destination, entity)
+            # scene = kwargs.get('scene', None)
+            # if scene is not None:
+            #     scene.pause = not scene.pause
+
         direction = entity.get_component(PhysicComponent).direction
         if not self.path:
             direction.update()
@@ -339,6 +343,8 @@ ACTION_TO_DIRECTION = {
 }
 
 class QLearningPathFind:
+    needs_update = True
+    update_order = ORD_PATH
     """
     A reforcement learning path find component using Q-learning
     """
@@ -353,15 +359,16 @@ class QLearningPathFind:
     def update(self, entity: AbstractEntity, *_, **kwargs):
         current_position = entity.get_component(SpriteComponent).rect.center
         current_destination = self.target.get_component(SpriteComponent).rect.center
-
-        state = State(self.to_tile(current_position), self.to_tile(current_destination))
-        G: GTable = self.Q.get(state, {})
-        best_action: Any = max(G, key=G.__getitem__, default=None)
-        direction = entity.get_component(PhysicComponent).direction
-        direction.update(ACTION_TO_DIRECTION.get(best_action, (0, 0)))
+        if self.Q is not None:
+            state = State(self.to_tile(current_position), self.to_tile(current_destination))
+            G: GTable = self.Q.get(state, {})
+            best_action: Any = max(G, key=G.__getitem__, default=None)
+            direction = entity.get_component(PhysicComponent).direction
+            direction.update(ACTION_TO_DIRECTION.get(best_action, (0, 0)))
+        else:
+            direction = entity.get_component(PhysicComponent).direction
+            direction.update(pg.Vector2(current_destination) - current_position)
         if direction.xy != (0, 0):
             direction.normalize_ip()
         else:
-            direction.update(pg.Vector2(current_destination) - current_position)
-            if direction:
-                direction.normalize_ip()
+            direction.normalize_ip()

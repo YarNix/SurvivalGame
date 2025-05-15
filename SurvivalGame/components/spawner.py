@@ -50,6 +50,7 @@ def pathfind_resolution(entity: AbstractEntity , pathfind_type: type[UninformedP
 
 class EnemySpawnPool:
     def __init__(self, player: AbstractEntity, map: TmxMap, update_entities: list[AbstractEntity], render: LayeredRender, max_spawn = 100) -> None:
+        self.enable = True
         self.active: list[AbstractEntity] = []
         self.inactive: list[AbstractEntity] = []
         self.spawn_points = map.markers.get('Enemy', [])
@@ -73,7 +74,7 @@ class EnemySpawnPool:
         enemy = Enemy(skin=ENEMY_TYPE_TO_SKIN[etype], spawn=spawn)
         enemy.add_component(StateComponent)
         pathfind_resolution(enemy, choice(ENEMY_TYPE_TO_PATHFIND[etype]), nav_map=self.map.template_nav, target=self.player, qtable=self.qtable, map=self.map)
-        enemy.add_component(InformedPathFind, self.map.template_nav, self.player)
+        # enemy.add_component(InformedPathFind, self.map.template_nav, self.player)
         self.activate_enemy(enemy)
         return enemy
     
@@ -110,6 +111,8 @@ class EnemySpawnPool:
             return choice(list(EnemyType))
     
     def update(self, gametime: float, dt: float, *args, **kwargs):
+        if not self.enable:
+            return
         for enemy in self.active[:]:
             status = enemy.get_component(StateComponent, None)
             if status is not None and status.dead:

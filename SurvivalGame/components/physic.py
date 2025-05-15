@@ -87,28 +87,28 @@ class RigidBoundingBox(PhysicComponent):
                     continue
                 if not new_box.colliderect(other_box):
                     continue
-                # if box.colliderect(other_box):
-                #     if owner is None:
-                #         # The entity is clipped into collidable.
-                #         # Skip it.
-                #         continue
-                #     elif isinstance(owner, EntityBase) and RigidBoundingBox in owner.components:
-                #         # Entity is inside another entity
-                #         # apply a force to seperate them
-                #         other_sprite = owner.get_component(SpriteComponent, None)
-                #         if other_sprite:
-                #             sep_dir = pg.Vector2(spr_pos) - other_sprite.rect.center
-                #         else:
-                #             sep_dir = pg.Vector2()
-                #         SEP_FORCE = 5
-                #         if sep_dir == (0, 0):
-                #             sep_dir.update(SEP_FORCE, 0)
-                #             sep_dir.rotate_ip(random() * 360)
-                #         else:
-                #             sep_dir.scale_to_length(SEP_FORCE)
-                #         #print(f'Detected {other_box} inside, applying {sep_dir}')
-                #         self.direction += sep_dir
-                #         offset = self.direction * self.speed * dt
+                if box.colliderect(other_box):
+                    if owner is None:
+                        # The entity is clipped into collidable.
+                        # Skip it.
+                        continue
+                    elif isinstance(owner, EntityBase) and RigidBoundingBox in owner.components:
+                        # Entity is inside another entity
+                        # apply a force to seperate them
+                        other_sprite = owner.get_component(SpriteComponent, None)
+                        if other_sprite:
+                            sep_dir = pg.Vector2(spr_pos) - other_sprite.rect.center
+                        else:
+                            sep_dir = pg.Vector2()
+                        SEP_FORCE = 5
+                        if sep_dir == (0, 0):
+                            sep_dir.update(SEP_FORCE, 0)
+                            sep_dir.rotate_ip(random() * 360)
+                        else:
+                            sep_dir.scale_to_length(SEP_FORCE)
+                        #print(f'Detected {other_box} inside, applying {sep_dir}')
+                        self.direction += sep_dir
+                        offset = self.direction * self.speed * dt
                         
                 if self.direction.x != 0:
                     dist = (other_box.left - box.right) if self.direction.x > 0 else (box.left - other_box.right)
