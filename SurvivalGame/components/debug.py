@@ -2,12 +2,13 @@ from random import choice
 from typing import Any
 from SurvivalGame.components.abstract import EntityBase, PhysicComponent
 from SurvivalGame.components.camera import CameraComponent
-from SurvivalGame.components.map import SpatialGrid
+from SurvivalGame.components.entity import EnemyType
+from SurvivalGame.components.grid import SpatialGrid
 from SurvivalGame.components.pathfind import AOSearching, BackTrackCSP, InformedPathFind, LocalPathFind, PathFindComponent, QLearningPathFind, UninformedPathFind
 from SurvivalGame.components.render import LayerId, LayeredRender
 from SurvivalGame.components.sprites import BasicSprite
 from SurvivalGame.const import *
-from SurvivalGame.components.spawner import ENEMY_TYPE_TO_SKIN, EnemyType, ENEMY_TYPE_TO_PATHFIND
+from SurvivalGame.components.spawner import ENEMY_TYPE_TO_SKIN, ENEMY_TYPE_TO_PATHFIND
 import pygame as pg
 
 
@@ -30,25 +31,22 @@ class Debugger(EntityBase):
         super().__init__()
         self.switch = switch
         self._render = render
-        self.add_component(BasicSprite, pg.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pg.SRCALPHA))
-        overlay = self.get_component(BasicSprite)
-        overlay.image.fill(CL_TRANS)
-        render.add(overlay, LayerId.OVERLAY)
-    def update(self, *args, **kwargs):
+        overlay = pg.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pg.SRCALPHA)
+        overlay.fill(CL_TRANS)
+        self.add_component(BasicSprite, overlay, layer=LayerId.OVERLAY)
+        
+    def update(self, scene: Any = None, events: list[pg.Event] = [], **kwargs):
         if not self.switch.active:
             return
-        super().update(*args, **kwargs)
-        scene: Any = kwargs.get('scene', None)
+        super().update(**kwargs)
         if scene is None:
             return
-        for event in kwargs.get('events', []):
-            if event.type == pg.KEYDOWN and event.mod == pg.KMOD_RCTRL:
+        for event in events:
+            if event.type == pg.KEYDOWN and (event.mod & pg.KMOD_RCTRL) != 0:
                 if event.key == pg.K_c:
                     self.switch.draw_collision = not self.switch.draw_collision
                 elif event.key == pg.K_e:
-                    scene = kwargs.get('scene', None)
-                    if scene is not None:
-                        enemy: EntityBase = scene.enemy_spawn.spawn(EnemyType.GHOUL)
+                    enemy: EntityBase = scene.enemy_spawn.spawn(EnemyType.GHOUL)
                 elif event.key == pg.K_p:
                     self.switch.draw_pathfind = not self.switch.draw_pathfind
                 elif event.key == pg.K_q:
@@ -65,30 +63,29 @@ class Debugger(EntityBase):
                         pg.K_6: QLearningPathFind
                     }
                     print('Spawning', algo[event.key])
-                    ENEMY_TYPE_TO_SKIN[0] = ENEMY_TYPE_TO_SKIN[choice([EnemyType.WEAK_ZOMBIE, EnemyType.STRONG_ZOMBIE, EnemyType.WEAK_SKELETON, EnemyType.STRONG_SKELETON, EnemyType.GHOUL])]
-                    ENEMY_TYPE_TO_PATHFIND[0] = [algo[event.key]]
-                    scene.enemy_spawn.spawn(0)
+                    #ENEMY_TYPE_TO_SKIN[EnemyType.UNKNOWN] = ENEMY_TYPE_TO_SKIN[choice([EnemyType.WEAK_ZOMBIE, EnemyType.STRONG_ZOMBIE, EnemyType.WEAK_SKELETON, EnemyType.STRONG_SKELETON, EnemyType.GHOUL])]
+                    ENEMY_TYPE_TO_SKIN[EnemyType.UNKNOWN] = ENEMY_TYPE_TO_SKIN[EnemyType.WEAK_ZOMBIE]
+                    ENEMY_TYPE_TO_PATHFIND[EnemyType.UNKNOWN] = [algo[event.key]]
+                    scene.enemy_spawn.spawn(EnemyType.UNKNOWN)
                 elif event.key == pg.K_9:
                     for enemy in scene.enemy_spawn.active.copy():
                         scene.enemy_spawn.deactive_enemy(enemy)
                 elif event.key == pg.K_l:
                     scene.enemy_spawn.enable = not scene.enemy_spawn.enable 
+                elif event.key == pg.K_SPACE:
+                    scene.add_entity(scene.player.spawn_bullet())
+                    
 
         surf = self.get_component(BasicSprite).image
         surf.fill(CL_TRANS)
-        scene = kwargs.get('scene', None)
-        if scene is None:
-            return
         if self.switch.draw_collision:
             collide_grid = kwargs.get('collide_grid', None)
             
             if not isinstance(collide_grid, SpatialGrid):
                 return    
             player: EntityBase = scene.player
-            scale = self._render.scale
             prect = player.get_component(BasicSprite).rect
             x, y = prect.center
-            scr_offset = self._render.offset * scale
             xstart = int(x // CELL_SIZE - 1)
             ystart = int(y // CELL_SIZE - 1)
             for i in range(xstart, xstart + 4):
@@ -108,10 +105,10 @@ class Debugger(EntityBase):
                 pathfind = entity.get_component(PathFindComponent, None)
                 if pathfind is not None:
                     pos = entity.get_component(BasicSprite).rect.center
-                    # bound = entity.get_component(PhysicComponent).bound
                     if pathfind.path:
                         path = pathfind.path + [pos]
-                        for pA, pB in zip(path, path[1:]):
-                            pg.draw.aaline(surf, CL_WHITE, self._render.to_screen(pA), self._render.to_screen(pB), 3)
+                        pathlen = len(path) - 1
+                        for idx, (pA, pB) in enumerate(zip(path, path[1:])):
+                            pg.draw.aaline(surf, pg.Color.from_hsva(240 * (idx / pathlen), 100, 100, 100), self._render.to_screen(pA), self._render.to_screen(pB), 3)
                         
     

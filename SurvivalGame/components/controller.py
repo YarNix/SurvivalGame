@@ -7,9 +7,8 @@ class PlayerController:
     update_order = ORD_INPUT
     def __init__(self):
         self.input_dir = pg.Vector2()
-    def update(self, entity: AbstractEntity, *_, **kwargs):
-        event: pg.Event
-        for event in kwargs.get('events', []):
+    def update(self, entity: AbstractEntity, events: list[pg.Event], **_):
+        for event in events:
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_w:
                     self.input_dir.y += -1

@@ -11,10 +11,8 @@ class SurvivalGame:
         self.clock = pg.time.Clock()
         self.running = False
         if title is None:
-            title = "SPKT"
+            title = "Survival Game"
         pg.display.set_caption(title)
-
-        self.text_font = pg.font.Font(join(PT_FONT, "pixel_font.otf"), 42)
 
         self.pause = False
 

@@ -1,7 +1,8 @@
+from abc import ABC, abstractmethod
 import pygame as pg
 from SurvivalGame.const import ORD_DEFAULT
 from SurvivalGame.typing import Point, Rect
-from typing import Protocol, Type, TypeVar, ParamSpec, Generator, Callable, Any, overload, runtime_checkable
+from typing import Protocol, Sequence, Type, TypeVar, ParamSpec, Callable, Any, overload, runtime_checkable
 
 T = TypeVar('T')
 P = ParamSpec('P')
@@ -19,34 +20,46 @@ class AbstractEntity(Protocol):
     def get_component(self, comp_type: Type[T], default: None = None) -> T | None: ...
     def get_component(self, comp_type: Type[T], default: Any = None) -> T | None: ...
 
-    def get_components(self, comp_type: Type[T]) -> list[T]: ...
-    def update(self, *args, **kwargs): ...
+    def get_components(self, comp_type: Type[T]) -> Sequence[T]: ...
+    def update(self, **kwargs): ...
+
+    @property
+    def tags(self) -> tuple[str, ...]: ...
+    def add_tag(self, tag: str): ...
 
 @runtime_checkable
 class UpdateComponent(Protocol):
     needs_update = True
-    def update(self, *args, entity: AbstractEntity, **kwargs): ...
+    def update(self, entity: AbstractEntity, **kwargs): ...
 
 @runtime_checkable
 class AttachComponent(Protocol):
     def on_attach(self, entity: AbstractEntity): ...
 
+class SupportsEntityOperation(Protocol):
+    def add_entity(self, entity: AbstractEntity, **kwargs): ...
+    def rem_entity(self, entity: AbstractEntity, **kwargs): ...
+
 class PhysicComponent:
     direction: pg.Vector2
     bound: Point
     speed: float
+    DEFAULT_SPEED = 80.0
 
 class SpriteComponent:
+    LAYER: int
     image: pg.Surface
-    rect: Rect
+    rect: pg.Rect | pg.FRect
 
 class EntityBase:
     _sentinel = object()
+    _default_tags: set[str] = set()
     """
     An abstract class that represent entities in a world
     """
     def __init__(self):
         self.components: dict[Type, Any] = {}
+        self._tags = EntityBase._default_tags
 
     def add_component(self, comp_type: Type[T] | Callable[P, T], *args, **kwargs):
         if not isinstance(comp_type, type):
@@ -85,7 +98,9 @@ class EntityBase:
                 del self.components[sub_type]
                 break
 
-    def update(self, *args, **kwargs):
+    def update(self, paused = False, **kwargs):
+        if paused:
+            return
         components = []
         for comp in self.components.values():
             order = getattr(comp, "update_order", ORD_DEFAULT)
@@ -97,7 +112,17 @@ class EntityBase:
         #print(type(self).__name__, *(type(comp[1]).__name__ for comp in components))
         for order, component in components:
             if isinstance(component, UpdateComponent) and component.needs_update:
-                component.update(entity=self, order=order, *args, **kwargs)
+                component.update(entity=self, order=order, **kwargs)
+    
+    @property
+    def tags(self):
+        return tuple(self._tags)
+
+    def add_tag(self, tag: str):
+        if self._tags is self._default_tags:
+            self._tags = set([tag])
+        else:
+            self._tags.add(tag)
 
 class FrameAnimation(Protocol):
     def step(self, dt: float) -> bool: ...
@@ -118,3 +143,6 @@ class AbstractPixelMap:
     def width(self) -> int: ...
     @property
     def height(self) -> int: ...
+
+class CollideTriggerComponent:
+    def on_any_collided(self, obj): ...

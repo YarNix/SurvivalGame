@@ -18,7 +18,7 @@ class CameraComponent:
         screen_rect = pg.Rect(0, 0, SCREEN_WIDTH / scale, SCREEN_HEIGHT / self.render.scale)
         return screen_rect.move_to(center=subject_pos)
     
-    def update(self, entity: AbstractEntity, *_, **__):
+    def update(self, entity: AbstractEntity, **_):
         # Moving the render to focus on the entity
         camera_rect = self.get_rect(entity)
         for ground in self.render.sprites[LayerId.TILED]:

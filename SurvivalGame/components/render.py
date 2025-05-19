@@ -1,5 +1,5 @@
 from enum import IntEnum
-from typing import overload
+from typing import Any, Iterable, overload
 from SurvivalGame.components.abstract import SpriteComponent
 from SurvivalGame.const import *
 from SurvivalGame.typing import *
@@ -11,7 +11,8 @@ class LayerId(IntEnum):
     TILED = 1
     BEHIND = 2
     OBJECT = 3
-    OVERLAY = 4
+    ABOVE = 4
+    OVERLAY = 5
 
 class LayeredRender:
     def __init__(self, scale = 1.0):
@@ -20,10 +21,21 @@ class LayeredRender:
         self.scale = float(scale)
         self.screen = pg.Surface((SCREEN_WIDTH / self.scale, SCREEN_HEIGHT / self.scale))
 
-    def add(self, spr: SpriteComponent, layer: LayerId = LayerId.DEFAULT):
+    def add(self, spr: Any):
+        if not isinstance(spr, SpriteComponent):
+            raise TypeError(type(spr), "is not a subclass of", SpriteComponent)
+        layer = spr.LAYER
         self.sprites.setdefault(layer, []).append(spr)
     
-    def remove(self, spr: SpriteComponent, layer: LayerId = LayerId.DEFAULT):
+    def extend(self, sprs: Iterable[SpriteComponent]):
+        for spr in sprs:
+            if not isinstance(spr, SpriteComponent):
+                raise TypeError(type(spr), "is not a subclass of", SpriteComponent)
+            layer = spr.LAYER
+            self.sprites.setdefault(layer, []).append(spr)
+
+    def remove(self, spr: SpriteComponent):
+        layer = spr.LAYER
         self.sprites[layer].remove(spr)
 
     def render(self, surface: pg.Surface):

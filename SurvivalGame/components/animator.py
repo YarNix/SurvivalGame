@@ -1,7 +1,7 @@
-from typing import Protocol
+from typing import Any
 from SurvivalGame.components.abstract import FrameAnimation, PhysicComponent, SpriteComponent, AbstractEntity
 from SurvivalGame.components.sprites import SpriteSheetImage
-from SurvivalGame.components.state import PlayerStateComponent
+from SurvivalGame.components.state import StateComponent
 from SurvivalGame.const import *
 from SurvivalGame.typing import *
 import pygame as pg
@@ -24,6 +24,7 @@ class SingleKeyFrameAnimation(FrameAnimation):
 class MultiKeyFramesAnimation(FrameAnimation):
     def __init__(self, keyframes: list[KeyFrame]):
         self.keyframes = keyframes
+        self.time_scale = 1.0
         self.restart()
         # self.elapsed_time = 0.0
         # self.frame_index = 0
@@ -37,13 +38,14 @@ class MultiKeyFramesAnimation(FrameAnimation):
             self.frame_index += 1
             if self.frame_index >= len(self.keyframes):
                 self.frame_index = 0
+            self.frame_duration = self.keyframes[self.frame_index][1] * self.time_scale
             redraw = True
         return redraw
     
     def restart(self):
         self.elapsed_time = 0.0
         self.frame_index = 0
-        self.frame_duration: float = self.keyframes[0][1]
+        self.frame_duration: float = self.keyframes[0][1] * self.time_scale
 
     @property
     def index(self):
@@ -77,7 +79,7 @@ class BasicAnimator:
         sprite.image = self.sprites[self._animation.index]
         sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
 
-    def update(self, entity: AbstractEntity, dt, *_, **__):
+    def update(self, entity: AbstractEntity, dt, **_):
         if self._animation.step(dt):
             sprite = entity.get_component(SpriteComponent, None)
             if sprite is None:
@@ -107,11 +109,18 @@ class PlayerAnimator:
             return
         sprite.image = self.sprites[self.animations[self.current_state].index]
         sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
+        physic = entity.get_component(PhysicComponent, None)
+        if physic is None:
+            return
+        
+        ani: Any = self.animations['Run']
+        if hasattr(ani, 'time_scale'):
+            ani.time_scale = PhysicComponent.DEFAULT_SPEED / physic.speed
 
-    def update(self, entity: AbstractEntity, dt, *_, **__):
+    def update(self, entity: AbstractEntity, dt, **_):
         sprite = entity.get_component(SpriteComponent, None)
         physic = entity.get_component(PhysicComponent, None)
-        state = entity.get_component(PlayerStateComponent, None)
+        state = entity.get_component(StateComponent, None)
         if sprite is None or physic is None or state is None:
             return
         
@@ -166,22 +175,41 @@ class EnemyAnimator:
         sprite.image = self.sprites[self.animations[self.current_state].index]
         sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
 
-    def update(self, entity: AbstractEntity, dt, *_, **__):
+    def update(self, entity: AbstractEntity, dt, **_):
         sprite = entity.get_component(SpriteComponent, None)
         physic = entity.get_component(PhysicComponent, None)
-        if sprite is None or physic is None:
+        state = entity.get_component(StateComponent, None)
+        if sprite is None or physic is None or state is None:
             return
         redraw = False
-        dir_x, dir_y = physic.direction.xy
-        if dir_x != 0 and (physic.direction.x < 0) != self.flipped:
-            self.flipped = physic.direction.x < 0
-            redraw = True
+        if state.health <= 0:
+            if self.current_state != 'Dead':
+                self.current_state = 'Dead'
+                redraw = True
+        else: 
+            if state.damage:
+                self.current_state = 'Hit'
+                state.damage = False
+                redraw = True
+            dir_x, dir_y = physic.direction.xy
+            if dir_x != 0 and (physic.direction.x < 0) != self.flipped:
+                self.flipped = physic.direction.x < 0
+                redraw = True
 
         current_ani = self.animations[self.current_state]
         if redraw:
             current_ani.restart() 
         else:
             redraw = current_ani.step(dt)
+            if redraw:
+                if self.current_state == 'Dead':
+                    self.current_state = 'Run'
+                    state.dead = True
+                    redraw = False
+                elif self.current_state == 'Hit':
+                    self.current_state = 'Run'
+                    current_ani = self.animations['Run']
+                    current_ani.restart()
         
         if redraw:
             new_sprite = self.sprites[current_ani.index]
@@ -189,3 +217,8 @@ class EnemyAnimator:
                 new_sprite = pg.transform.flip(new_sprite, True, False)
             sprite.image = new_sprite
             sprite.rect.update(sprite.image.get_frect(center=sprite.rect.center))
+
+class HUDAnimator:
+    needs_update = True
+    update_order = ORD_ANIMATE
+    

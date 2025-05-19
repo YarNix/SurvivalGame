@@ -1,23 +1,17 @@
-from enum import IntEnum
 import os
 import pickle
+import pandas as pd
+import pygame as pg
 from random import choice
-from typing import Sequence
-from SurvivalGame.components.abstract import AbstractEntity, SpriteComponent
+from SurvivalGame.components.abstract import AbstractEntity, SpriteComponent, SupportsEntityOperation
 from SurvivalGame.components.camera import CameraComponent
-from SurvivalGame.components.entity import Enemy
+from SurvivalGame.components.entity import Enemy, EnemyType
 from SurvivalGame.components.map import TmxMap
-from SurvivalGame.components.pathfind import QTable, UninformedPathFind, InformedPathFind, LocalPathFind, AOSearching, BackTrackCSP, QLearningPathFind
-from SurvivalGame.components.render import LayerId, LayeredRender
+from SurvivalGame.components.pathfind import UninformedPathFind, InformedPathFind, LocalPathFind, AOSearching, BackTrackCSP, QLearningPathFind
+from SurvivalGame.components.render import LayerId
 from SurvivalGame.components.state import StateComponent
+from SurvivalGame.components.text import AttachedText
 from SurvivalGame.typing import *
-
-class EnemyType(IntEnum):
-    WEAK_ZOMBIE = 1
-    STRONG_ZOMBIE = 2
-    WEAK_SKELETON = 3
-    STRONG_SKELETON = 4
-    GHOUL = 5
 
 ENEMY_TYPE_TO_SKIN = {
     EnemyType.WEAK_ZOMBIE: "Enemy 0",
@@ -28,14 +22,30 @@ ENEMY_TYPE_TO_SKIN = {
 } 
 
 ENEMY_TYPE_TO_PATHFIND: dict[EnemyType, list[type]] = {
-    EnemyType.WEAK_ZOMBIE: [UninformedPathFind, InformedPathFind],
+    EnemyType.WEAK_ZOMBIE: [UninformedPathFind, QLearningPathFind],
     EnemyType.STRONG_ZOMBIE: [LocalPathFind],
     EnemyType.WEAK_SKELETON: [BackTrackCSP],
     EnemyType.STRONG_SKELETON: [AOSearching],
-    EnemyType.GHOUL: [QLearningPathFind]
+    EnemyType.GHOUL: [InformedPathFind]
 }
 
-#ENEMY_TYPE_TO_STATS: dict[EnemyType, list[tuple[]]]
+ENEMY_TYPE_TO_STATS: dict[EnemyType, float] = {
+    EnemyType.UNKNOWN: 1.0,
+    EnemyType.WEAK_ZOMBIE: 0.2,
+    EnemyType.STRONG_ZOMBIE: 0.5,
+    EnemyType.WEAK_SKELETON: 0.5,
+    EnemyType.STRONG_SKELETON: 0.75,
+    EnemyType.GHOUL: 1
+}
+
+ENEMY_TYPE_TO_NAME: dict[type, str] = {
+    UninformedPathFind: 'BFS',
+    InformedPathFind: 'A*',
+    LocalPathFind: 'BEAM',
+    AOSearching: 'AND_OR',
+    BackTrackCSP: 'Backtrack',
+    QLearningPathFind: 'QLearning'    
+}
 
 def pathfind_resolution(entity: AbstractEntity , pathfind_type: type[UninformedPathFind | InformedPathFind | LocalPathFind | AOSearching | BackTrackCSP | QLearningPathFind], **kwargs):
     if not issubclass(pathfind_type, QLearningPathFind):
@@ -47,23 +57,25 @@ def pathfind_resolution(entity: AbstractEntity , pathfind_type: type[UninformedP
         qtable = kwargs['qtable']
         target = kwargs['target']
         entity.add_component(pathfind_type, map=map, qtable=qtable, target=target)
+    entity.add_component(AttachedText, pg.Font(size=14), ENEMY_TYPE_TO_NAME[pathfind_type], offset=(0, -14))
 
 class EnemySpawnPool:
-    def __init__(self, player: AbstractEntity, map: TmxMap, update_entities: list[AbstractEntity], render: LayeredRender, max_spawn = 100) -> None:
+    def __init__(self, player: AbstractEntity, tmx_map: TmxMap, context: SupportsEntityOperation, max_spawn = 80) -> None:
         self.enable = True
-        self.active: list[AbstractEntity] = []
-        self.inactive: list[AbstractEntity] = []
-        self.spawn_points = map.markers.get('Enemy', [])
-        self.player = player
-        self.upd_ents = update_entities
-        self.map = map
-        self.render = render
         self.max_gametime = 5 * 60
         self.max_spawn = max_spawn
         self.last_spawn_time = 0
+        
+        self.active: list[Enemy] = []
+        self.inactive: list[Enemy] = []
+        self.spawn_points = tmx_map.markers.get('Enemy', [])
+        self.player = player
+        self.tmx_map = tmx_map
+        self.context = context
+
         if os.path.exists('qtable.pkl'):
             with open('qtable.pkl', "rb") as f:
-                self.qtable: QTable | None = pickle.load(f)
+                self.qtable: pd.DataFrame | None = pickle.load(f)
         else:
             self.qtable = None
             print('Warning: Missing qtable.pkl for QLearningPathFind')
@@ -71,30 +83,34 @@ class EnemySpawnPool:
     def spawn(self, etype: EnemyType):
         camera = self.player.get_component(CameraComponent).get_rect(self.player)
         spawn = choice([spawn for spawn in self.spawn_points if not camera.collidepoint(spawn)] or self.spawn_points)
-        enemy = Enemy(skin=ENEMY_TYPE_TO_SKIN[etype], spawn=spawn)
-        enemy.add_component(StateComponent)
-        pathfind_resolution(enemy, choice(ENEMY_TYPE_TO_PATHFIND[etype]), nav_map=self.map.template_nav, target=self.player, qtable=self.qtable, map=self.map)
-        # enemy.add_component(InformedPathFind, self.map.template_nav, self.player)
+        for deactive in self.inactive:
+            if deactive.type_name == etype:
+                enemy = deactive
+                enemy.get_component(SpriteComponent).rect.center = spawn
+                break
+        else:
+            enemy = Enemy(type_name=etype, skin=ENEMY_TYPE_TO_SKIN[etype], spawn=spawn)
+            pathfind_resolution(enemy, choice(ENEMY_TYPE_TO_PATHFIND[etype]), nav_map=self.tmx_map.template_nav, target=self.player, qtable=self.qtable, map=self.tmx_map)
         self.activate_enemy(enemy)
         return enemy
     
-    def activate_enemy(self, enemy: AbstractEntity):
+    def activate_enemy(self, enemy: Enemy):
         if enemy in self.inactive:
             self.inactive.remove(enemy)
         if enemy not in self.active:
             self.active.append(enemy)
-        self.upd_ents.append(enemy)
-        self.render.add(enemy.get_component(SpriteComponent), LayerId.OBJECT)
-        self.map.collide_grid.add(enemy)
+        state = enemy.get_component(StateComponent)
+        state.health = 100 * ENEMY_TYPE_TO_STATS[enemy.type_name]
+        state.dead = False
+        state.damage = False
+        self.context.add_entity(enemy)
 
-    def deactive_enemy(self, enemy: AbstractEntity):
+    def deactive_enemy(self, enemy: Enemy):
         if enemy in self.active:
             self.active.remove(enemy)
         if enemy not in self.inactive:
             self.inactive.append(enemy)
-        self.upd_ents.remove(enemy)
-        self.render.remove(enemy.get_component(SpriteComponent), LayerId.OBJECT)
-        self.map.collide_grid.remove(enemy)
+        self.context.rem_entity(enemy)
 
     def select_enemy_type(self, gametime: float) -> EnemyType:
         # Time-based enemy selection logic
@@ -110,8 +126,8 @@ class EnemySpawnPool:
         else:
             return choice(list(EnemyType))
     
-    def update(self, gametime: float, dt: float, *args, **kwargs):
-        if not self.enable:
+    def update(self, gametime: float, dt: float):
+        if not self.enable or dt <= 0:
             return
         for enemy in self.active[:]:
             status = enemy.get_component(StateComponent, None)

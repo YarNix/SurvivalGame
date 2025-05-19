@@ -43,8 +43,14 @@ sprites:
   - 18
   - 18
 states:
-  Dead: Dead
-  Hit: Hit
+  Dead:
+  - !!python/tuple
+    - Dead
+    - 1200.0
+  Hit: 
+  - !!python/tuple
+    - Hit
+    - 80.0
   Run:
   - !!python/tuple
     - Run 0

@@ -1,11 +1,14 @@
 from collections import deque
 from enum import IntEnum
-from typing import Any, Callable, Literal, NamedTuple, TypeVar, Generic, Protocol, runtime_checkable
+from time import localtime
+from random import Random
+from typing import Any, Callable, NamedTuple, TypeVar, Generic, Protocol, runtime_checkable, cast
 from abc import ABC, abstractmethod
 from SurvivalGame.const import *
 from SurvivalGame.typing import *
 from SurvivalGame.components.abstract import AbstractEntity, AbstractPixelMap, PhysicComponent, SpriteComponent
-from SurvivalGame.components.map import Edge, NavigationTemplateMap, rect_at_edge, rect_scan_intersect
+from SurvivalGame.components.map import NavigationTemplateMap, rect_at_edge, rect_scan_intersect
+import pandas as pd
 import pygame as pg
 import heapq
 
@@ -32,7 +35,7 @@ class MinimalPathFindBase(PathFindComponent, ABC):
     @abstractmethod
     def path_find(self, start: Point, end: Point, entity: AbstractEntity): ...
 
-    def update(self, entity: AbstractEntity, *_, **kwargs):
+    def update(self, entity: AbstractEntity, **_):
         current_position = entity.get_component(SpriteComponent).rect.center
         current_vect = pg.Vector2(current_position)
         current_destination = self.target.get_component(SpriteComponent).rect.center
@@ -324,13 +327,6 @@ class Action(IntEnum):
     SW = 7
     SE = 8
 
-class State(NamedTuple):
-    tile: Point
-    goal: Point
-
-GTable = dict[Action, float]
-QTable = dict[State, GTable]
-
 ACTION_TO_DIRECTION = {
     Action.N: (0, -1),
     Action.S: (0, 1),
@@ -342,33 +338,45 @@ ACTION_TO_DIRECTION = {
     Action.SE: (1, 1)
 }
 
-class QLearningPathFind:
+class QLearningPathFind(MinimalPathFindBase):
     needs_update = True
     update_order = ORD_PATH
     """
     A reforcement learning path find component using Q-learning
     """
-    def __init__(self, map: AbstractPixelMap, qtable: QTable, target: AbstractEntity):
+    def __init__(self, map: AbstractPixelMap, qtable: pd.DataFrame, target: AbstractEntity):
+        super().__init__(target)
         self.map = map
         self.Q = qtable
-        self.target = target
+        self.rng = Random()
 
     def to_tile(self, point: Point):
-        return (point[0] // self.map.tilewidth, point[1] // self.map.tileheight)
+        return (int(point[0] // self.map.tilewidth), int(point[1] // self.map.tileheight))
+    
+    def from_tile(self, tile: Point):
+        return (int((tile[0] + 0.5) * self.map.tilewidth), int((tile[1] + 0.5) * self.map.tileheight))
+    
+    def get_action(self, tile: Point, goal: Point):
+        try:
+            return Action(self.Q.at[tile, goal])
+        except:
+            # Choose a random angle
+            self.rng.seed(hash((tile, localtime().tm_sec)))
+            return cast(Action, Action._member_map_[self.rng.choice(Action._member_names_)])
 
-    def update(self, entity: AbstractEntity, *_, **kwargs):
-        current_position = entity.get_component(SpriteComponent).rect.center
-        current_destination = self.target.get_component(SpriteComponent).rect.center
-        if self.Q is not None:
-            state = State(self.to_tile(current_position), self.to_tile(current_destination))
-            G: GTable = self.Q.get(state, {})
-            best_action: Any = max(G, key=G.__getitem__, default=None)
-            direction = entity.get_component(PhysicComponent).direction
-            direction.update(ACTION_TO_DIRECTION.get(best_action, (0, 0)))
-        else:
-            direction = entity.get_component(PhysicComponent).direction
-            direction.update(pg.Vector2(current_destination) - current_position)
-        if direction.xy != (0, 0):
-            direction.normalize_ip()
-        else:
-            direction.normalize_ip()
+    def path_find(self, start: Point, end: Point, entity: AbstractEntity):
+        self.path.clear()
+        steps = iter(range(18))
+        current_tile = self.to_tile(start)
+        current_goal = self.to_tile(end)
+        current_action: Action = self.get_action(current_tile, current_goal)
+        visited = set([current_goal])
+        
+        while current_tile not in visited and next(steps, -1) != -1:
+            visited.add(current_tile)
+            # Get the next tile from the action
+            dir = ACTION_TO_DIRECTION[current_action]
+            current_tile = (current_tile[0] + dir[0], current_tile[1] + dir[1])
+            current_action = self.get_action(current_tile, current_goal)
+            self.path.append(self.from_tile(current_tile))
+        self.path.reverse()
